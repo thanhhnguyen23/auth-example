@@ -33,14 +33,13 @@ mongoose.connect('mongodb://localhost:27017/authDemo')
 
 const requireLogin = (req, res, next) => {
   if(!req.session.user_id){
-    res.redirect('/login');
+    return res.redirect('/login');
   }
+  next();
 }
 
-app.get('/secret', (req, res) => {
-  if(!req.session.user_id){
-    return res.redirect('/login')
-  }
+// * NOTE: requireLogin to protect authenticated routes
+app.get('/secret', requireLogin, (req, res) => {
   // res.send('THIS IS A SECRET! SHOULD NOT SEE ME UNLESS YOU ARE LOGGED IN!'); // * NOTE: debug logout route
   res.render('secret')
 })
@@ -52,25 +51,20 @@ app.get('/login', (req, res) => {
 
 app.post('/login', async (req, res) => {
   const { username, password } = req.body;
-  // res.send(req.body); // * NOTE: debugging login route
 
-  const user = await User.findOne({ username });
+  const foundUser = await User.findAndValidate(username, password);
 
-  const validPassword = await bcrypt.compare(password, user.password);
-  if(validPassword){
-    req.session.user_id = user._id; 
-    console.log(`[LOG] - req.session.user_id= ${req.session.user_id}`); // * NOTE: debugging user session 
-    // res.send('YAY WELCOME'); // * NOTE: debugging authorized route
-
+  if(foundUser){
+    req.session.user_id = foundUser._id; 
     res.redirect('/secret')
   }
   else{
-    // res.send('TRY AGAIN!'); // * NOTE: debugging unauthorized route
     res.redirect('/login')
   }
 })
 
 app.get('/', (req, res) => {
+  debugger;
   res.send('THIS IS THE HOME PAGE');
 })
 
